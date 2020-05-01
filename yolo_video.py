@@ -1,5 +1,5 @@
 # USAGE
-# python yolo_video.py --input videos/airport.mp4 --output output/airport_output.avi --yolo yolo-coco
+# python3 yolo_video.py --input cam12.mkv --output output/airport_output.avi --yolo yolo-coco
 
 # import the necessary packages
 import numpy as np
@@ -20,7 +20,7 @@ ap.add_argument("-y", "--yolo", required=True,
 ap.add_argument("-c", "--confidence", type=float, default=0.5,
 	help="minimum probability to filter weak detections")
 ap.add_argument("-t", "--threshold", type=float, default=0.3,
-	help="threshold when applyong non-maxima suppression")
+	help="threshold when applying non-maxima suppression")
 args = vars(ap.parse_args())
 
 classname = []
@@ -62,6 +62,8 @@ ln = [ln[i[0] - 1] for i in net.getUnconnectedOutLayers()]
 vs = cv2.VideoCapture(args["input"])
 writer = None
 (W, H) = (None, None)
+video_height = vs.get(cv2.CAP_PROP_FRAME_HEIGHT)
+video_width = vs.get(cv2.CAP_PROP_FRAME_WIDTH)
 
 # try to determine the total number of frames in the video file
 try:
@@ -81,7 +83,50 @@ except:
 
 list_of_vehicles = ["car","bus","motorbike","truck","bicycle"]
 
+start_time = int(time.time())
+frames = 0
+vehicle_count = 0
+
+x1_line = 0
+y1_line = int(video_height/2)
+x2_line = int(video_width)
+y2_line = int(video_height/2)
+
+def displayVehicleCount(frame, vehicle_count):
+	cv2.putText(
+		frame, #Image
+		'Detected Vehicles: ' + str(vehicle_count), #Label
+		(20, 20), #Position
+		cv2.FONT_HERSHEY_SIMPLEX, #Font
+		0.8, #Size
+		(0, 0xFF, 0), #Color
+		2, #Thickness
+		cv2.FONT_HERSHEY_COMPLEX_SMALL,
+		)
+
+
+# Returns true if the midpoint of the box overlaps with the line
+# within a threshold of 5 units 
+def boxAndLineOverlap(x_mid_point,y_mid_point):
+	if (x_mid_point >= x1_line and x_mid_point <= x2_line+5) and\
+		(y_mid_point >= y1_line and y_mid_point <= y2_line+5):
+		return True
+	return False
+
+previous_frame_detections = []
 while True:
+	current_detections = []
+	vehicle_crossed_line_flag = False
+
+	print('===========NEW FRAME=============')
+	frames += 1
+	#calculating fps
+	current_time = int(time.time())
+	if(current_time > start_time):
+		print("===========================>> FPS:", frames)
+		frames = 0
+		start_time = current_time
+
 	# read the next frame from the file
 	(grabbed, frame) = vs.read()
 
@@ -113,7 +158,7 @@ while True:
 	# loop over each of the layer outputs
 	for output in layerOutputs:
 		# loop over each of the detections
-		for detection in output:
+		for i, detection in enumerate(output):
 			# extract the class ID and confidence (i.e., probability)
 			# of the current object detection
 			scores = detection[5:]
@@ -136,6 +181,24 @@ while True:
 				x = int(centerX - (width / 2))
 				y = int(centerY - (height / 2))
 
+				#++++++++++++++++++++++++++++++++++++
+				#Marking a green circle in the middle of the box
+				cv2.circle(frame, (centerX, centerY), 2, (0, 0xFF, 0), thickness=2)
+				
+				print('\nName:\t', LABELS[classID],
+					'\t|\tBOX:\t', x,y,
+					'\t|\tID:\t', i)
+
+				if (LABELS[classID] in list_of_vehicles) and \
+					boxAndLineOverlap(centerX, centerY) and \
+					(i not in previous_frame_detections):
+					vehicle_count += 1
+					vehicle_crossed_line_flag += True
+
+				#Adding to the list of detected items
+				current_detections.append(i)
+				#++++++++++++++++++++++++++++++++++++
+
 				# update our list of bounding box coordinates,
 				# confidences, and class IDs
 				boxes.append([x, y, int(width), int(height)])
@@ -143,10 +206,23 @@ while True:
 				classIDs.append(classID)
 				classname.append(LABELS[classID])
 
+	# Changing line color to green if a vehicle in the frame has crossed the line 
+	if vehicle_crossed_line_flag:
+		cv2.line(frame, (x1_line, y1_line), (x2_line, y2_line), (0, 0xFF, 0), 2)
+	# Changing line color to red if a vehicle in the frame has not crossed the line 
+	else:
+		cv2.line(frame, (x1_line, y1_line), (x2_line, y2_line), (0, 0, 0xFF), 2)
+
+	# Display Vehicle Count if a vehicle has passed the line 
+	displayVehicleCount(frame, vehicle_count)
+
+
+	previous_frame_detections = current_detections
 	# apply non-maxima suppression to suppress weak, overlapping
 	# bounding boxes
 	idxs = cv2.dnn.NMSBoxes(boxes, confidences, args["confidence"],
 		args["threshold"])
+	
 
 	# ensure at least one detection exists
 	if len(idxs) > 0:
@@ -182,8 +258,12 @@ while True:
 			print("[INFO] estimated total time to finish: {:.4f}".format(
 				elap * total))
 
-	# write the output frame to disk
+
+    # write the output frame to disk
 	writer.write(frame)
+	cv2.imshow('Frame', frame)
+	if cv2.waitKey(1) & 0xFF == ord('q'):
+		break	
 
 # release the file pointers
 print("[INFO] cleaning up...")
