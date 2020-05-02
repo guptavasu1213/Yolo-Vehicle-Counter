@@ -1,3 +1,4 @@
 *.mp4
 *.mkv
 *.weights
+__pycache__/**
