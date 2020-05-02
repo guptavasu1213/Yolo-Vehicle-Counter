@@ -1,48 +1,22 @@
 # import the necessary packages
 import numpy as np
-import argparse
 import imutils
 import time
 import cv2
-import os
+from input_retrieval import *
 
 DEBUG = True
 list_of_vehicles = ["bicycle","car","motorbike","bus","truck", "train"]
 
+#Parsing command line arguments and extracting the values required
+LABELS, weightsPath, configPath, inputVideoPath, outputVideoPath,\
+	preDefinedConfidence, preDefinedThreshold = parseCommandLineArguments()
 
-# PURPOSE:
-# PARAMETERS:
-# RETURN:
-def parseCommandLineArguments():
-	# construct the argument parse and parse the arguments
-	ap = argparse.ArgumentParser()
-	ap.add_argument("-i", "--input", required=True,
-		help="path to input video")
-	ap.add_argument("-o", "--output", required=True,
-		help="path to output video")
-	ap.add_argument("-y", "--yolo", required=True,
-		help="base path to YOLO directory")
-	ap.add_argument("-c", "--confidence", type=float, default=0.5,
-		help="minimum probability to filter weak detections")
-	ap.add_argument("-t", "--threshold", type=float, default=0.3,
-		help="threshold when applying non-maxima suppression")
+# Initialize a list of colors to represent each possible class label
+np.random.seed(42)
+COLORS = np.random.randint(0, 255, size=(len(LABELS), 3),
+	dtype="uint8")
 
-	args = vars(ap.parse_args())
-
-	# load the COCO class labels our YOLO model was trained on
-	labelsPath = os.path.sep.join([args["yolo"], "coco.names"])
-	LABELS = open(labelsPath).read().strip().split("\n")
-	
-	# derive the paths to the YOLO weights and model configuration
-	weightsPath = os.path.sep.join([args["yolo"], "yolov3.weights"])
-	configPath = os.path.sep.join([args["yolo"], "yolov3.cfg"])
-	
-	inputVideoPath = args["input"]
-	outputVideoPath = args["output"]
-	confidence = args["confidence"]
-	threshold = args["threshold"]
-
-	return LABELS, weightsPath, configPath, inputVideoPath, outputVideoPath, confidence, threshold 
 
 # PURPOSE: Determining the total number of frames in the video file
 # PARAMETERS: N/A
@@ -103,15 +77,37 @@ def displayFPS(start_time, num_frames):
 		start_time = current_time
 	return start_time, num_frames
 
+# PURPOSE:
+# PARAMETERS:
+# RETURN:
+def drawDetectionBox(idxs, boxes, classIDs, confidences, frame):
+	# ensure at least one detection exists
+	if len(idxs) > 0:
+		# loop over the indexes we are keeping
+		for i in idxs.flatten():
+			# extract the bounding box coordinates
+			(x, y) = (boxes[i][0], boxes[i][1])
+			(w, h) = (boxes[i][2], boxes[i][3])
 
-#Parsing command line arguments
-LABELS, weightsPath, configPath, inputVideoPath, outputVideoPath,\
-	preDefinedConfidence, preDefinedThreshold = parseCommandLineArguments()
+			# draw a bounding box rectangle and label on the frame
+			color = [int(c) for c in COLORS[classIDs[i]]]
+			cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
+			text = "{}: {:.4f}".format(LABELS[classIDs[i]],
+				confidences[i])
+			cv2.putText(frame, text, (x, y - 5),
+				cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+			#Draw a green dot in the middle of the box
+			cv2.circle(frame, (x + (w//2), y+ (h//2)), 2, (0, 0xFF, 0), thickness=2)
 
-# initialize a list of colors to represent each possible class label
-np.random.seed(42)
-COLORS = np.random.randint(0, 255, size=(len(LABELS), 3),
-	dtype="uint8")
+# PURPOSE:
+# PARAMETERS:
+# RETURN:
+def initializeVideoWriter():
+	# initialize our video writer
+	fourcc = cv2.VideoWriter_fourcc(*"MJPG")
+	return cv2.VideoWriter(outputVideoPath, fourcc, 30,
+		(frame.shape[1], frame.shape[0]), True)
+
 
 # load our YOLO object detector trained on COCO dataset (80 classes)
 # and determine only the *output* layer names that we need from YOLO
@@ -125,31 +121,28 @@ ln = [ln[i[0] - 1] for i in net.getUnconnectedOutLayers()]
 videoStream = cv2.VideoCapture(inputVideoPath)
 video_width = int(videoStream.get(cv2.CAP_PROP_FRAME_WIDTH))
 video_height = int(videoStream.get(cv2.CAP_PROP_FRAME_HEIGHT))
-writer = None
 
-# Determining the total number of frames in the video file
-total_frames = getVideoFrames()
-
-start_time = int(time.time())
-num_frames = 0
-vehicle_count = 0
-
+# Drawing a line 
 x1_line = 0
 y1_line = video_height//2
 x2_line = video_width
 y2_line = video_height//2
 
-previous_frame_detections = []
-print(video_width, video_height)
+#Initialization
+num_frames, vehicle_count, previous_frame_detections = 0, 0, []
+writer = initializeVideoWriter()
+start_time = int(time.time())
 # loop over frames from the video file stream
 while True:
+	print("================NEW FRAME================")
 	num_frames += 1
-	current_detections = []
-	vehicle_crossed_line_flag = False
+	# Initialization for each iteration
+	current_detections, boxes, confidences, classIDs = [], [], [], [] 
+
+	vehicle_crossed_line_flag = False 
 
 	#Calculating fps each second
 	start_time, num_frames = displayFPS(start_time, num_frames)
-	print("================NEW FRAME================")
 
 	# read the next frame from the file
 	(grabbed, frame) = videoStream.read()
@@ -168,12 +161,6 @@ while True:
 	start = time.time()
 	layerOutputs = net.forward(ln)
 	end = time.time()
-
-	# initialize our lists of detected bounding boxes, confidences,
-	# and class IDs, respectively
-	boxes = []
-	confidences = []
-	classIDs = []
 
 	# loop over each of the layer outputs
 	for output in layerOutputs:
@@ -201,26 +188,23 @@ while True:
 				x = int(centerX - (width / 2))
 				y = int(centerY - (height / 2))
 
-				#++++++++++++++++++++++++++++++++++++
-				#Marking a green circle in the middle of the box
-				cv2.circle(frame, (centerX, centerY), 2, (0, 0xFF, 0), thickness=2)
-				
 				#Printing the info of the detection
 				if DEBUG:				
 					print('\nName:\t', LABELS[classID],
 						'\t|\tBOX:\t', x,y,
 						'\t|\tID:\t', i)
 
-				####DOCUMENT
+				# When the detection is in the list of vehicles, AND
+				# it crosses the line AND
+				# the ID of the detection is not present in the vehicles
 				if (LABELS[classID] in list_of_vehicles) and \
 					boxAndLineOverlap(centerX, centerY, (x1_line, y1_line, x2_line, y2_line)) and \
 					(i not in previous_frame_detections):
 					vehicle_count += 1
 					vehicle_crossed_line_flag += True
 
-				#Adding to the list of detected items
+				#Add the current detection to the list of detected items
 				current_detections.append(i)
-				#++++++++++++++++++++++++++++++++++++
 
 				# update our list of bounding box coordinates,
 				# confidences, and class IDs
@@ -238,50 +222,24 @@ while True:
 	# Display Vehicle Count if a vehicle has passed the line 
 	displayVehicleCount(frame, vehicle_count)
 
-
-	previous_frame_detections = current_detections
 	# apply non-maxima suppression to suppress weak, overlapping
 	# bounding boxes
 	idxs = cv2.dnn.NMSBoxes(boxes, confidences, preDefinedConfidence,
 		preDefinedThreshold)
-	
 
-	# ensure at least one detection exists
-	if len(idxs) > 0:
-		# loop over the indexes we are keeping
-		for i in idxs.flatten():
-			# extract the bounding box coordinates
-			(x, y) = (boxes[i][0], boxes[i][1])
-			(w, h) = (boxes[i][2], boxes[i][3])
-
-			# draw a bounding box rectangle and label on the frame
-			color = [int(c) for c in COLORS[classIDs[i]]]
-			cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
-			text = "{}: {:.4f}".format(LABELS[classIDs[i]],
-				confidences[i])
-			cv2.putText(frame, text, (x, y - 5),
-				cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-
-	# check if the video writer is None
-	if writer is None:
-		# initialize our video writer
-		fourcc = cv2.VideoWriter_fourcc(*"MJPG")
-		writer = cv2.VideoWriter(outputVideoPath, fourcc, 30,
-			(frame.shape[1], frame.shape[0]), True)
-
-		# some information on processing single frame
-		if total_frames > 0:
-			elap = (end - start)
-			print("[INFO] single frame took {:.4f} seconds".format(elap))
-			print("[INFO] estimated total time to finish: {:.4f}".format(
-				elap * total_frames))
-
+	# Draw detection box 
+	drawDetectionBox(idxs, boxes, classIDs, confidences, frame)
 
     # write the output frame to disk
 	writer.write(frame)
+
 	cv2.imshow('Frame', frame)
 	if cv2.waitKey(1) & 0xFF == ord('q'):
 		break	
+	
+	# Updating with the current frame detections
+	previous_frame_detections = current_detections
+
 
 # release the file pointers
 print("[INFO] cleaning up...")
