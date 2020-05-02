@@ -1,12 +1,9 @@
 # Yolo Vehicle Counter
 
 ## Overview
-YoLo is a CNN architecture which specialize in object detection. 
+You Only Look Once (YOLO) is a CNN architecture for performing real-time object detection. The algorithm applies a single neural network to the full image, and then divides the image into regions and predicts bounding boxes and probabilities for each region. For more detailed working of YOLO algorithm, please refer to the [YOLO paper](https://pjreddie.com/media/files/papers/YOLOv3.pdf). 
 
-This project aims to count every vehicle(motorcycle, bus, car, cycle, truck)  detected in the input image/video.
-
-If you want to try this program, you must download the pretrained-model, datasets, and classes from the link above. This is how to run the program 
-
+This project aims to count every vehicle(motorcycle, bus, car, cycle, truck) detected in the input video using YOLOv3 object-detection algorithm.
 
 ## Working 
 As shown in the [gif], the vehicles crossing the red line are counted. When the center point of the detection box of the vehicle (green dot) intersects with the line, the vehicle counter increments by one.  
