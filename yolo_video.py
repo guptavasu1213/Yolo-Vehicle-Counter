@@ -102,11 +102,11 @@ def drawDetectionBox(idxs, boxes, classIDs, confidences, frame):
 # PURPOSE:
 # PARAMETERS:
 # RETURN:
-def initializeVideoWriter():
+def initializeVideoWriter(video_width, video_height):
 	# initialize our video writer
 	fourcc = cv2.VideoWriter_fourcc(*"MJPG")
 	return cv2.VideoWriter(outputVideoPath, fourcc, 30,
-		(frame.shape[1], frame.shape[0]), True)
+		(video_width, video_height), True)
 
 
 # load our YOLO object detector trained on COCO dataset (80 classes)
@@ -130,7 +130,7 @@ y2_line = video_height//2
 
 #Initialization
 num_frames, vehicle_count, previous_frame_detections = 0, 0, []
-writer = initializeVideoWriter()
+writer = initializeVideoWriter(video_width, video_height)
 start_time = int(time.time())
 # loop over frames from the video file stream
 while True:
@@ -147,8 +147,7 @@ while True:
 	# read the next frame from the file
 	(grabbed, frame) = videoStream.read()
 
-	# if the frame was not grabbed, then we have reached the end
-	# of the stream
+	# if the frame was not grabbed, then we have reached the end of the stream
 	if not grabbed:
 		break
 
