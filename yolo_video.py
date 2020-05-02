@@ -26,8 +26,23 @@ def parseCommandLineArguments():
 		help="minimum probability to filter weak detections")
 	ap.add_argument("-t", "--threshold", type=float, default=0.3,
 		help="threshold when applying non-maxima suppression")
-	return vars(ap.parse_args())
 
+	args = vars(ap.parse_args())
+
+	# load the COCO class labels our YOLO model was trained on
+	labelsPath = os.path.sep.join([args["yolo"], "coco.names"])
+	LABELS = open(labelsPath).read().strip().split("\n")
+	
+	# derive the paths to the YOLO weights and model configuration
+	weightsPath = os.path.sep.join([args["yolo"], "yolov3.weights"])
+	configPath = os.path.sep.join([args["yolo"], "yolov3.cfg"])
+	
+	inputVideoPath = args["input"]
+	outputVideoPath = args["output"]
+	confidence = args["confidence"]
+	threshold = args["threshold"]
+
+	return LABELS, weightsPath, configPath, inputVideoPath, outputVideoPath, confidence, threshold 
 
 # PURPOSE: Determining the total number of frames in the video file
 # PARAMETERS: N/A
@@ -88,21 +103,15 @@ def displayFPS(start_time, num_frames):
 		start_time = current_time
 	return start_time, num_frames
 
-#Parsing command line arguments
-args = parseCommandLineArguments()
 
-# load the COCO class labels our YOLO model was trained on
-labelsPath = os.path.sep.join([args["yolo"], "coco.names"])
-LABELS = open(labelsPath).read().strip().split("\n")
+#Parsing command line arguments
+LABELS, weightsPath, configPath, inputVideoPath, outputVideoPath,\
+	preDefinedConfidence, preDefinedThreshold = parseCommandLineArguments()
 
 # initialize a list of colors to represent each possible class label
 np.random.seed(42)
 COLORS = np.random.randint(0, 255, size=(len(LABELS), 3),
 	dtype="uint8")
-
-# derive the paths to the YOLO weights and model configuration
-weightsPath = os.path.sep.join([args["yolo"], "yolov3.weights"])
-configPath = os.path.sep.join([args["yolo"], "yolov3.cfg"])
 
 # load our YOLO object detector trained on COCO dataset (80 classes)
 # and determine only the *output* layer names that we need from YOLO
@@ -113,7 +122,7 @@ ln = [ln[i[0] - 1] for i in net.getUnconnectedOutLayers()]
 
 # initialize the video stream, pointer to output video file, and
 # frame dimensions
-videoStream = cv2.VideoCapture(args["input"])
+videoStream = cv2.VideoCapture(inputVideoPath)
 video_width = int(videoStream.get(cv2.CAP_PROP_FRAME_WIDTH))
 video_height = int(videoStream.get(cv2.CAP_PROP_FRAME_HEIGHT))
 writer = None
@@ -134,13 +143,13 @@ previous_frame_detections = []
 print(video_width, video_height)
 # loop over frames from the video file stream
 while True:
-	print("================NEW FRAME================")
 	num_frames += 1
 	current_detections = []
 	vehicle_crossed_line_flag = False
 
 	#Calculating fps each second
 	start_time, num_frames = displayFPS(start_time, num_frames)
+	print("================NEW FRAME================")
 
 	# read the next frame from the file
 	(grabbed, frame) = videoStream.read()
@@ -178,7 +187,7 @@ while True:
 
 			# filter out weak predictions by ensuring the detected
 			# probability is greater than the minimum probability
-			if confidence > args["confidence"]:
+			if confidence > preDefinedConfidence:
 				# scale the bounding box coordinates back relative to
 				# the size of the image, keeping in mind that YOLO
 				# actually returns the center (x, y)-coordinates of
@@ -233,8 +242,8 @@ while True:
 	previous_frame_detections = current_detections
 	# apply non-maxima suppression to suppress weak, overlapping
 	# bounding boxes
-	idxs = cv2.dnn.NMSBoxes(boxes, confidences, args["confidence"],
-		args["threshold"])
+	idxs = cv2.dnn.NMSBoxes(boxes, confidences, preDefinedConfidence,
+		preDefinedThreshold)
 	
 
 	# ensure at least one detection exists
@@ -257,7 +266,7 @@ while True:
 	if writer is None:
 		# initialize our video writer
 		fourcc = cv2.VideoWriter_fourcc(*"MJPG")
-		writer = cv2.VideoWriter(args["output"], fourcc, 30,
+		writer = cv2.VideoWriter(outputVideoPath, fourcc, 30,
 			(frame.shape[1], frame.shape[0]), True)
 
 		# some information on processing single frame
