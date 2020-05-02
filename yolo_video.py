@@ -1,6 +1,3 @@
-# USAGE
-# python3 yolo_video.py --input cam12.mkv --output output/airport_output.avi --yolo yolo-coco
-
 # import the necessary packages
 import numpy as np
 import argparse
@@ -9,33 +6,90 @@ import time
 import cv2
 import os
 
-# construct the argument parse and parse the arguments
-ap = argparse.ArgumentParser()
-ap.add_argument("-i", "--input", required=True,
-	help="path to input video")
-ap.add_argument("-o", "--output", required=True,
-	help="path to output video")
-ap.add_argument("-y", "--yolo", required=True,
-	help="base path to YOLO directory")
-ap.add_argument("-c", "--confidence", type=float, default=0.5,
-	help="minimum probability to filter weak detections")
-ap.add_argument("-t", "--threshold", type=float, default=0.3,
-	help="threshold when applying non-maxima suppression")
-args = vars(ap.parse_args())
+DEBUG = True
+list_of_vehicles = ["bicycle","car","motorbike","bus","truck", "train"]
 
-classname = []
-list_of_vehicles = ["bicycle","car","motorbike","bus","truck"]
-def get_vehicle_count(boxes, class_names):
-	total_vehicle_count = 0 # total vechiles present in the image
-	dict_vehicle_count = {} # dictionary with count of each distinct vehicles detected
-	for i in range(len(boxes)):
-		class_name = class_names[i]
-		# print(i,".",class_name)
-		if(class_name in list_of_vehicles):
-			total_vehicle_count += 1
-			dict_vehicle_count[class_name] = dict_vehicle_count.get(class_name,0) + 1
 
-	return total_vehicle_count, dict_vehicle_count
+# PURPOSE:
+# PARAMETERS:
+# RETURN:
+def parseCommandLineArguments():
+	# construct the argument parse and parse the arguments
+	ap = argparse.ArgumentParser()
+	ap.add_argument("-i", "--input", required=True,
+		help="path to input video")
+	ap.add_argument("-o", "--output", required=True,
+		help="path to output video")
+	ap.add_argument("-y", "--yolo", required=True,
+		help="base path to YOLO directory")
+	ap.add_argument("-c", "--confidence", type=float, default=0.5,
+		help="minimum probability to filter weak detections")
+	ap.add_argument("-t", "--threshold", type=float, default=0.3,
+		help="threshold when applying non-maxima suppression")
+	return vars(ap.parse_args())
+
+
+# PURPOSE: Determining the total number of frames in the video file
+# PARAMETERS: N/A
+# RETURN: Number of frames in the video; OR -1 if an error occurs
+def getVideoFrames():
+	# try to determine the total number of frames in the video file
+	try:
+		prop = cv2.cv.CV_CAP_PROP_FRAME_COUNT if imutils.is_cv2() \
+			else cv2.CAP_PROP_FRAME_COUNT
+		total = 200
+		print("[INFO] {} total frames in video".format(total))
+
+	# an error occurred while trying to determine the total
+	# number of frames in the video file
+	except:
+		print("[INFO] could not determine # of frames in video")
+		print("[INFO] no approx. completion time can be provided")
+		total = -1
+	return total
+
+# PURPOSE:
+# PARAMETERS:
+# RETURN:
+def displayVehicleCount(frame, vehicle_count):
+	cv2.putText(
+		frame, #Image
+		'Detected Vehicles: ' + str(vehicle_count), #Label
+		(20, 20), #Position
+		cv2.FONT_HERSHEY_SIMPLEX, #Font
+		0.8, #Size
+		(0, 0xFF, 0), #Color
+		2, #Thickness
+		cv2.FONT_HERSHEY_COMPLEX_SMALL,
+		)
+
+# PURPOSE:
+# PARAMETERS:
+# RETURN:
+# Returns true if the midpoint of the box overlaps with the line
+# within a threshold of 5 units 
+def boxAndLineOverlap(x_mid_point,y_mid_point, line_coordinates):
+	x1_line, y1_line, x2_line, y2_line = line_coordinates #Unpacking
+
+	if (x_mid_point >= x1_line and x_mid_point <= x2_line+5) and\
+		(y_mid_point >= y1_line and y_mid_point <= y2_line+5):
+		return True
+	return False
+
+# PURPOSE:
+# PARAMETERS:
+# RETURN:
+def displayFPS(start_time, num_frames):
+	current_time = int(time.time())
+	if(current_time > start_time):
+		os.system('clear') # Equivalent of CTRL+L on the terminal
+		print("FPS:", num_frames)
+		num_frames = 0
+		start_time = current_time
+	return start_time, num_frames
+
+#Parsing command line arguments
+args = parseCommandLineArguments()
 
 # load the COCO class labels our YOLO model was trained on
 labelsPath = os.path.sep.join([args["yolo"], "coco.names"])
@@ -59,85 +113,42 @@ ln = [ln[i[0] - 1] for i in net.getUnconnectedOutLayers()]
 
 # initialize the video stream, pointer to output video file, and
 # frame dimensions
-vs = cv2.VideoCapture(args["input"])
+videoStream = cv2.VideoCapture(args["input"])
+video_width = int(videoStream.get(cv2.CAP_PROP_FRAME_WIDTH))
+video_height = int(videoStream.get(cv2.CAP_PROP_FRAME_HEIGHT))
 writer = None
-(W, H) = (None, None)
-video_height = vs.get(cv2.CAP_PROP_FRAME_HEIGHT)
-video_width = vs.get(cv2.CAP_PROP_FRAME_WIDTH)
 
-# try to determine the total number of frames in the video file
-try:
-	prop = cv2.cv.CV_CAP_PROP_FRAME_COUNT if imutils.is_cv2() \
-		else cv2.CAP_PROP_FRAME_COUNT
-	total = 200
-	print("[INFO] {} total frames in video".format(total))
-
-# an error occurred while trying to determine the total
-# number of frames in the video file
-except:
-	print("[INFO] could not determine # of frames in video")
-	print("[INFO] no approx. completion time can be provided")
-	total = -1
-
-# loop over frames from the video file stream
-
-list_of_vehicles = ["car","bus","motorbike","truck","bicycle"]
+# Determining the total number of frames in the video file
+total_frames = getVideoFrames()
 
 start_time = int(time.time())
-frames = 0
+num_frames = 0
 vehicle_count = 0
 
 x1_line = 0
-y1_line = int(video_height/2)
-x2_line = int(video_width)
-y2_line = int(video_height/2)
-
-def displayVehicleCount(frame, vehicle_count):
-	cv2.putText(
-		frame, #Image
-		'Detected Vehicles: ' + str(vehicle_count), #Label
-		(20, 20), #Position
-		cv2.FONT_HERSHEY_SIMPLEX, #Font
-		0.8, #Size
-		(0, 0xFF, 0), #Color
-		2, #Thickness
-		cv2.FONT_HERSHEY_COMPLEX_SMALL,
-		)
-
-
-# Returns true if the midpoint of the box overlaps with the line
-# within a threshold of 5 units 
-def boxAndLineOverlap(x_mid_point,y_mid_point):
-	if (x_mid_point >= x1_line and x_mid_point <= x2_line+5) and\
-		(y_mid_point >= y1_line and y_mid_point <= y2_line+5):
-		return True
-	return False
+y1_line = video_height//2
+x2_line = video_width
+y2_line = video_height//2
 
 previous_frame_detections = []
+print(video_width, video_height)
+# loop over frames from the video file stream
 while True:
+	print("================NEW FRAME================")
+	num_frames += 1
 	current_detections = []
 	vehicle_crossed_line_flag = False
 
-	print('===========NEW FRAME=============')
-	frames += 1
-	#calculating fps
-	current_time = int(time.time())
-	if(current_time > start_time):
-		print("===========================>> FPS:", frames)
-		frames = 0
-		start_time = current_time
+	#Calculating fps each second
+	start_time, num_frames = displayFPS(start_time, num_frames)
 
 	# read the next frame from the file
-	(grabbed, frame) = vs.read()
+	(grabbed, frame) = videoStream.read()
 
 	# if the frame was not grabbed, then we have reached the end
 	# of the stream
 	if not grabbed:
 		break
-
-	# if the frame dimensions are empty, grab them
-	if W is None or H is None:
-		(H, W) = frame.shape[:2]
 
 	# construct a blob from the input frame and then perform a forward
 	# pass of the YOLO object detector, giving us our bounding boxes
@@ -173,7 +184,7 @@ while True:
 				# actually returns the center (x, y)-coordinates of
 				# the bounding box followed by the boxes' width and
 				# height
-				box = detection[0:4] * np.array([W, H, W, H])
+				box = detection[0:4] * np.array([video_width, video_height, video_width, video_height])
 				(centerX, centerY, width, height) = box.astype("int")
 
 				# use the center (x, y)-coordinates to derive the top
@@ -185,12 +196,15 @@ while True:
 				#Marking a green circle in the middle of the box
 				cv2.circle(frame, (centerX, centerY), 2, (0, 0xFF, 0), thickness=2)
 				
-				print('\nName:\t', LABELS[classID],
-					'\t|\tBOX:\t', x,y,
-					'\t|\tID:\t', i)
+				#Printing the info of the detection
+				if DEBUG:				
+					print('\nName:\t', LABELS[classID],
+						'\t|\tBOX:\t', x,y,
+						'\t|\tID:\t', i)
 
+				####DOCUMENT
 				if (LABELS[classID] in list_of_vehicles) and \
-					boxAndLineOverlap(centerX, centerY) and \
+					boxAndLineOverlap(centerX, centerY, (x1_line, y1_line, x2_line, y2_line)) and \
 					(i not in previous_frame_detections):
 					vehicle_count += 1
 					vehicle_crossed_line_flag += True
@@ -204,7 +218,6 @@ while True:
 				boxes.append([x, y, int(width), int(height)])
 				confidences.append(float(confidence))
 				classIDs.append(classID)
-				classname.append(LABELS[classID])
 
 	# Changing line color to green if a vehicle in the frame has crossed the line 
 	if vehicle_crossed_line_flag:
@@ -241,10 +254,6 @@ while True:
 				cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
 	# check if the video writer is None
-
-	total_vehicles, each_vehicle = get_vehicle_count(boxes, classname)
-	print("Total vehicles in image", total_vehicles)
-	print("Each vehicles count in image", each_vehicle)
 	if writer is None:
 		# initialize our video writer
 		fourcc = cv2.VideoWriter_fourcc(*"MJPG")
@@ -252,11 +261,11 @@ while True:
 			(frame.shape[1], frame.shape[0]), True)
 
 		# some information on processing single frame
-		if total > 0:
+		if total_frames > 0:
 			elap = (end - start)
 			print("[INFO] single frame took {:.4f} seconds".format(elap))
 			print("[INFO] estimated total time to finish: {:.4f}".format(
-				elap * total))
+				elap * total_frames))
 
 
     # write the output frame to disk
@@ -268,4 +277,4 @@ while True:
 # release the file pointers
 print("[INFO] cleaning up...")
 writer.release()
-vs.release()
+videoStream.release()
