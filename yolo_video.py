@@ -17,26 +17,6 @@ np.random.seed(42)
 COLORS = np.random.randint(0, 255, size=(len(LABELS), 3),
 	dtype="uint8")
 
-
-# PURPOSE: Determining the total number of frames in the video file
-# PARAMETERS: N/A
-# RETURN: Number of frames in the video; OR -1 if an error occurs
-def getVideoFrames():
-	# try to determine the total number of frames in the video file
-	try:
-		prop = cv2.cv.CV_CAP_PROP_FRAME_COUNT if imutils.is_cv2() \
-			else cv2.CAP_PROP_FRAME_COUNT
-		total = 200
-		print("[INFO] {} total frames in video".format(total))
-
-	# an error occurred while trying to determine the total
-	# number of frames in the video file
-	except:
-		print("[INFO] could not determine # of frames in video")
-		print("[INFO] no approx. completion time can be provided")
-		total = -1
-	return total
-
 # PURPOSE:
 # PARAMETERS:
 # RETURN:
@@ -102,10 +82,14 @@ def drawDetectionBox(idxs, boxes, classIDs, confidences, frame):
 # PURPOSE:
 # PARAMETERS:
 # RETURN:
-def initializeVideoWriter(video_width, video_height):
+def initializeVideoWriter(video_width, video_height, videoStream):
+	# Getting the fps of the source video
+	sourceVideofps = videoStream.get(cv2.CAP_PROP_FPS)
+	print("nskjdnfkjdfnkds", sourceVideofps)
+	exit(1)
 	# initialize our video writer
 	fourcc = cv2.VideoWriter_fourcc(*"MJPG")
-	return cv2.VideoWriter(outputVideoPath, fourcc, 30,
+	return cv2.VideoWriter(outputVideoPath, fourcc, sourceVideofps,
 		(video_width, video_height), True)
 
 
@@ -122,7 +106,7 @@ videoStream = cv2.VideoCapture(inputVideoPath)
 video_width = int(videoStream.get(cv2.CAP_PROP_FRAME_WIDTH))
 video_height = int(videoStream.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-# Drawing a line 
+# Specifying coordinates for a default line 
 x1_line = 0
 y1_line = video_height//2
 x2_line = video_width
@@ -130,7 +114,7 @@ y2_line = video_height//2
 
 #Initialization
 num_frames, vehicle_count, previous_frame_detections = 0, 0, []
-writer = initializeVideoWriter(video_width, video_height)
+writer = initializeVideoWriter(video_width, video_height, videoStream)
 start_time = int(time.time())
 # loop over frames from the video file stream
 while True:
@@ -138,7 +122,6 @@ while True:
 	num_frames += 1
 	# Initialization for each iteration
 	current_detections, boxes, confidences, classIDs = [], [], [], [] 
-
 	vehicle_crossed_line_flag = False 
 
 	#Calculating fps each second
