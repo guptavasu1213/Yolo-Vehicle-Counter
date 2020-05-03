@@ -85,8 +85,6 @@ def drawDetectionBox(idxs, boxes, classIDs, confidences, frame):
 def initializeVideoWriter(video_width, video_height, videoStream):
 	# Getting the fps of the source video
 	sourceVideofps = videoStream.get(cv2.CAP_PROP_FPS)
-	print("nskjdnfkjdfnkds", sourceVideofps)
-	exit(1)
 	# initialize our video writer
 	fourcc = cv2.VideoWriter_fourcc(*"MJPG")
 	return cv2.VideoWriter(outputVideoPath, fourcc, sourceVideofps,
