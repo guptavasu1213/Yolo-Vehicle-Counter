@@ -1,9 +1,16 @@
 import argparse
 import os
 
-# PURPOSE:
-# PARAMETERS:
+# PURPOSE: Parsing the command line input and extracting the user entered values
+# PARAMETERS: N/A
 # RETURN:
+# - Labels of COCO dataset
+# - Path to the weight file
+# - Path to configuration file
+# - Path to the input video
+# - Path to the output video
+# - Confidence value
+# - Threshold value
 def parseCommandLineArguments():
 	# construct the argument parse and parse the arguments
 	ap = argparse.ArgumentParser()
