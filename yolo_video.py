@@ -5,10 +5,10 @@ import time
 import cv2
 from input_retrieval import *
 
-DEBUG = True
+#All these classes will be counted as 'vehicles'
 list_of_vehicles = ["bicycle","car","motorbike","bus","truck", "train"]
 
-#Parsing command line arguments and extracting the values required
+#Parse command line arguments and extract the values required
 LABELS, weightsPath, configPath, inputVideoPath, outputVideoPath,\
 	preDefinedConfidence, preDefinedThreshold = parseCommandLineArguments()
 
@@ -17,9 +17,9 @@ np.random.seed(42)
 COLORS = np.random.randint(0, 255, size=(len(LABELS), 3),
 	dtype="uint8")
 
-# PURPOSE:
-# PARAMETERS:
-# RETURN:
+# PURPOSE: Displays the vehicle count on the top-left corner of the frame
+# PARAMETERS: Frame on which the count is displayed, the count number of vehicles 
+# RETURN: N/A
 def displayVehicleCount(frame, vehicle_count):
 	cv2.putText(
 		frame, #Image
@@ -32,11 +32,12 @@ def displayVehicleCount(frame, vehicle_count):
 		cv2.FONT_HERSHEY_COMPLEX_SMALL,
 		)
 
-# PURPOSE:
-# PARAMETERS:
-# RETURN:
-# Returns true if the midpoint of the box overlaps with the line
-# within a threshold of 5 units 
+# PURPOSE: Determining if the box-mid point cross the line or are within the range of 5 units
+# from the line
+# PARAMETERS: X Mid-Point of the box, Y mid-point of the box, Coordinates of the line 
+# RETURN: 
+# - True if the midpoint of the box overlaps with the line within a threshold of 5 units 
+# - False if the midpoint of the box lies outside the line and threshold
 def boxAndLineOverlap(x_mid_point,y_mid_point, line_coordinates):
 	x1_line, y1_line, x2_line, y2_line = line_coordinates #Unpacking
 
@@ -45,9 +46,9 @@ def boxAndLineOverlap(x_mid_point,y_mid_point, line_coordinates):
 		return True
 	return False
 
-# PURPOSE:
-# PARAMETERS:
-# RETURN:
+# PURPOSE: Displaying the FPS of the detected video
+# PARAMETERS: Start time of the frame, number of frames within the same second
+# RETURN: New start time, new number of frames 
 def displayFPS(start_time, num_frames):
 	current_time = int(time.time())
 	if(current_time > start_time):
@@ -57,9 +58,8 @@ def displayFPS(start_time, num_frames):
 		start_time = current_time
 	return start_time, num_frames
 
-# PURPOSE:
-# PARAMETERS:
-# RETURN:
+# PURPOSE: Draw all the detection boxes with a green dot at the center
+# RETURN: N/A
 def drawDetectionBox(idxs, boxes, classIDs, confidences, frame):
 	# ensure at least one detection exists
 	if len(idxs) > 0:
@@ -79,9 +79,10 @@ def drawDetectionBox(idxs, boxes, classIDs, confidences, frame):
 			#Draw a green dot in the middle of the box
 			cv2.circle(frame, (x + (w//2), y+ (h//2)), 2, (0, 0xFF, 0), thickness=2)
 
-# PURPOSE:
-# PARAMETERS:
-# RETURN:
+# PURPOSE: Initializing the video writer with the output video path and the same number
+# of fps, width and height as the source video 
+# PARAMETERS: Width of the source video, Height of the source video, the video stream
+# RETURN: The initialized video writer
 def initializeVideoWriter(video_width, video_height, videoStream):
 	# Getting the fps of the source video
 	sourceVideofps = videoStream.get(cv2.CAP_PROP_FPS)
@@ -169,10 +170,9 @@ while True:
 				y = int(centerY - (height / 2))
 
 				#Printing the info of the detection
-				if DEBUG:				
-					print('\nName:\t', LABELS[classID],
-						'\t|\tBOX:\t', x,y,
-						'\t|\tID:\t', i)
+				print('\nName:\t', LABELS[classID],
+					'\t|\tBOX:\t', x,y,
+					'\t|\tID:\t', i)
 
 				# When the detection is in the list of vehicles, AND
 				# it crosses the line AND
