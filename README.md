@@ -5,8 +5,13 @@ You Only Look Once (YOLO) is a CNN architecture for performing real-time object 
 
 This project aims to count every vehicle(motorcycle, bus, car, cycle, truck) detected in the input video using YOLOv3 object-detection algorithm.
 
+This project currently harnesses the power of a CPU, but the goal is to use GPU for computations.
+
 ## Working 
-As shown in the [gif], the vehicles crossing the red line are counted. When the center point of the detection box of the vehicle (green dot) intersects with the line, the vehicle counter increments by one.  
+<p align="center">
+  <img src="https://github.com/guptavasu1213/Yolo-Vehicle-Counter/blob/master/example_gif/highwayVideoExample.gif">
+</p>
+As shown in the image above, the vehicles crossing the red line are counted. When the center point of the detection box of the vehicle (green dot) intersects with the line, the vehicle counter increments by one.  
 
 ## Prerequisites
 * Linux distro (Tested on Ubuntu 18.04)
