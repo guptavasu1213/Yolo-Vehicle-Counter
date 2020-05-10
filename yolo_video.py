@@ -109,7 +109,7 @@ def boxInPreviousFrame(previous_frame_detections, current_box):
 		if (temp_dist < dist):
 			dist = temp_dist
 
-	if (dist > (max(width, height))):
+	if (dist > (max(width, height)/2)):
 		return False
 	return True
 
