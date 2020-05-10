@@ -11,7 +11,10 @@ This project currently harnesses the power of a CPU, but the goal is to use GPU 
 <p align="center">
   <img src="https://github.com/guptavasu1213/Yolo-Vehicle-Counter/blob/master/example_gif/highwayVideoExample.gif">
 </p>
-As shown in the image above, the vehicles crossing the red line are counted. When the center point of the detection box of the vehicle (green dot) intersects with the line, the vehicle counter increments by one.  
+As shown in the image above, when the vehicles in the frame are detected, they are counted. After getting detected once, the vehicles get tracked and do not get re-counted by the algorithm. 
+
+You may also notice that the vehicles will initially be detected and the counter increments, but for a few frames, the vehicle is not detected, and then it gets detected again. As the vehicles are tracked, the vehicles are not re-counted if they are counted once. 
+
 
 ## Prerequisites
 * Linux distro (Tested on Ubuntu 18.04)
