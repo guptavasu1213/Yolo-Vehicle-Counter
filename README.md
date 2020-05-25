@@ -17,7 +17,7 @@ You may also notice that the vehicles will initially be detected and the counter
 
 
 ## Prerequisites
-* Linux distro (Tested on Ubuntu 18.04)
+* Linux distro or MacOS (Tested on Ubuntu 18.04)
 * A street video file to run the vehicle counting 
 * The pre-trained yolov3 weight file should be downloaded by following these steps:
 ```
@@ -38,6 +38,10 @@ sudo apt-get upgrade python3
 ```
 pip3 install imutils
 ```
+* Scipy
+```
+pip3 install scipy
+```
 
 ## Usage
 * `--input` or `-i` argument requires the path to the input video
@@ -47,14 +51,14 @@ pip3 install imutils
 * `--threshold` or `-t` is an optional argument which requires a float number between 0 to 1 denoting the threshold when applying non-maxima suppression. By default, the threshold is 0.3 (30%).
 
 ```
-python yolo_video.py --input <input video path> --output <output video path> --yolo yolo-coco [--confidence <float number between 0 and 1>] [--threshold <float number between 0 and 1>]
+python3 yolo_video.py --input <input video path> --output <output video path> --yolo yolo-coco [--confidence <float number between 0 and 1>] [--threshold <float number between 0 and 1>]
 ```
 Examples: 
 ```
-python yolo_video.py --input inputVideos/highway.mp4 --output outputVideos/highwayOut.avi --yolo yolo-coco 
+python3 yolo_video.py --input inputVideos/highway.mp4 --output outputVideos/highwayOut.avi --yolo yolo-coco 
 ```
 ```
-python yolo_video.py --input inputVideos/highway.mp4 --output outputVideos/highwayOut.avi --yolo yolo-coco --confidence 0.3
+python3 yolo_video.py --input inputVideos/highway.mp4 --output outputVideos/highwayOut.avi --yolo yolo-coco --confidence 0.3
 ```
 
 ## Implementation details

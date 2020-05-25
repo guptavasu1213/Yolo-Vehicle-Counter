@@ -229,9 +229,6 @@ while True:
 	# else:
 	# 	cv2.line(frame, (x1_line, y1_line), (x2_line, y2_line), (0, 0, 0xFF), 2)
 
-	# Display Vehicle Count if a vehicle has passed the line 
-	displayVehicleCount(frame, vehicle_count)
-
 	# apply non-maxima suppression to suppress weak, overlapping
 	# bounding boxes
 	idxs = cv2.dnn.NMSBoxes(boxes, confidences, preDefinedConfidence,
@@ -241,6 +238,9 @@ while True:
 	drawDetectionBoxes(idxs, boxes, classIDs, confidences, frame)
 
 	vehicle_count, current_detections = count_vehicles(idxs, boxes, classIDs, vehicle_count, previous_frame_detections)
+
+	# Display Vehicle Count if a vehicle has passed the line 
+	displayVehicleCount(frame, vehicle_count)
 
     # write the output frame to disk
 	writer.write(frame)
