@@ -35,6 +35,18 @@ def displayVehicleCount(frame, vehicle_count):
 		cv2.FONT_HERSHEY_COMPLEX_SMALL,
 		)
 
+def displayPeopleCount(frame, people_count):
+	cv2.putText(
+		frame, #Image
+		'Detected People: ' + str(people_count), #Label
+		(20, 50), #Position
+		cv2.FONT_HERSHEY_SIMPLEX, #Font
+		0.8, #Size
+		(0, 0, 0xFF), #Color
+		2, #Thickness
+		cv2.FONT_HERSHEY_COMPLEX_SMALL,
+		)	
+
 # PURPOSE: Determining if the box-mid point cross the line or are within the range of 5 units
 # from the line
 # PARAMETERS: X Mid-Point of the box, Y mid-point of the box, Coordinates of the line 
@@ -99,13 +111,13 @@ def initializeVideoWriter(video_width, video_height, videoStream):
 #			the coordinates of the box of previous detections
 # RETURN: True if the box was current box was present in the previous frames;
 #		  False if the box was not present in the previous frames
-def boxInPreviousFrame(previous_frame_detections, current_box):
+def boxInPreviousFrame(previous_vehicle_detections, current_box):
 	centerX, centerY, width, height = current_box
 	dist = np.inf #Initializing the minimum distance
 	# Iterating through all the k-dimensional trees
 	for i in range(FRAMES_BEFORE_CURRENT):
 		# Finding the distance to the closest point and the index
-		temp_dist, index = previous_frame_detections[i].query([(centerX, centerY)])
+		temp_dist, index = previous_vehicle_detections[i].query([(centerX, centerY)])
 		if (temp_dist < dist):
 			dist = temp_dist
 
@@ -113,8 +125,9 @@ def boxInPreviousFrame(previous_frame_detections, current_box):
 		return False
 	return True
 
-def count_vehicles(idxs, boxes, classIDs, vehicle_count, previous_frame_detections):
-	current_detections = []
+def count_people_and_vehicles(idxs, boxes, classIDs, vehicle_count, people_count, previous_vehicle_detections, previous_people_detections):
+	current_vehicle_detections = []
+	current_people_detections = [(0, 0)]
 	# ensure at least one detection exists
 	if len(idxs) > 0:
 		# loop over the indices we are keeping
@@ -123,17 +136,20 @@ def count_vehicles(idxs, boxes, classIDs, vehicle_count, previous_frame_detectio
 			(x, y) = (boxes[i][0], boxes[i][1])
 			(w, h) = (boxes[i][2], boxes[i][3])
 
+			if (LABELS[classIDs[i]] == "person"):
+				people_count += 1
+
 			# When the detection is in the list of vehicles, AND
 			# it crosses the line AND
 			# the ID of the detection is not present in the vehicles
-			if (LABELS[classIDs[i]] in list_of_vehicles):
+			elif (LABELS[classIDs[i]] in list_of_vehicles):
 				#Add the current detection mid-point of box to the list of detected items
-				current_detections.append((x + (w//2), y+ (h//2)))
+				current_vehicle_detections.append((x + (w//2), y+ (h//2)))
 
-				if (not boxInPreviousFrame(previous_frame_detections, (x + (w//2), y+ (h//2), w, h))):
+				if (not boxInPreviousFrame(previous_vehicle_detections, (x + (w//2), y+ (h//2), w, h))):
 					vehicle_count += 1
 					# vehicle_crossed_line_flag += True
-	return vehicle_count, current_detections
+	return vehicle_count, people_count, current_vehicle_detections, current_people_detections
 
 # load our YOLO object detector trained on COCO dataset (80 classes)
 # and determine only the *output* layer names that we need from YOLO
@@ -155,8 +171,9 @@ x2_line = video_width
 y2_line = video_height//2
 
 #Initialization
-previous_frame_detections = [spatial.KDTree([(0,0)])]*FRAMES_BEFORE_CURRENT # Initializing all trees
-num_frames, vehicle_count = 0, 0
+previous_vehicle_detections = [spatial.KDTree([(0,0)])]*FRAMES_BEFORE_CURRENT # Initializing all trees
+previous_people_detections = [spatial.KDTree([(0,0)])]*FRAMES_BEFORE_CURRENT # Initializing all trees
+num_frames, vehicle_count, people_count = 0, 0, 0
 writer = initializeVideoWriter(video_width, video_height, videoStream)
 start_time = int(time.time())
 # loop over frames from the video file stream
@@ -237,10 +254,13 @@ while True:
 	# Draw detection box 
 	drawDetectionBoxes(idxs, boxes, classIDs, confidences, frame)
 
-	vehicle_count, current_detections = count_vehicles(idxs, boxes, classIDs, vehicle_count, previous_frame_detections)
+	vehicle_count, people_count, current_vehicle_detections, current_people_detections = count_people_and_vehicles(idxs, boxes, classIDs, vehicle_count, people_count, previous_vehicle_detections, previous_people_detections)
 
-	# Display Vehicle Count if a vehicle has passed the line 
+	# Display Vehicle Count 
 	displayVehicleCount(frame, vehicle_count)
+
+	# Display people count
+	displayPeopleCount(frame, people_count)
 
     # write the output frame to disk
 	writer.write(frame)
@@ -250,9 +270,10 @@ while True:
 		break	
 	
 	# Updating with the current frame detections
-	previous_frame_detections.pop(0) #Removing the first frame from the list
-	previous_frame_detections.append(spatial.KDTree(current_detections))
-
+	previous_vehicle_detections.pop(0) #Removing the first frame from the list
+	previous_vehicle_detections.append(spatial.KDTree(current_vehicle_detections))
+	previous_people_detections.pop(0) #Removing the first frame from the list
+	previous_people_detections.append(spatial.KDTree(current_people_detections))
 
 # release the file pointers
 print("[INFO] cleaning up...")
