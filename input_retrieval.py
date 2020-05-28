@@ -24,6 +24,8 @@ def parseCommandLineArguments():
 		help="minimum probability to filter weak detections")
 	ap.add_argument("-t", "--threshold", type=float, default=0.3,
 		help="threshold when applying non-maxima suppression")
+	ap.add_argument("-u", "--use-gpu", type=bool, default=False,
+	help="boolean indicating if CUDA GPU should be used")
 
 	args = vars(ap.parse_args())
 
@@ -39,5 +41,6 @@ def parseCommandLineArguments():
 	outputVideoPath = args["output"]
 	confidence = args["confidence"]
 	threshold = args["threshold"]
+	USE_GPU = args["use_gpu"]
 
-	return LABELS, weightsPath, configPath, inputVideoPath, outputVideoPath, confidence, threshold 
+	return LABELS, weightsPath, configPath, inputVideoPath, outputVideoPath, confidence, threshold, USE_GPU

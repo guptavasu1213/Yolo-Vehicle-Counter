@@ -10,10 +10,11 @@ from input_retrieval import *
 list_of_vehicles = ["bicycle","car","motorbike","bus","truck", "train"]
 # Setting the threshold for the number of frames to search a vehicle for
 FRAMES_BEFORE_CURRENT = 10  
+inputWidth, inputHeight = 416, 416
 
 #Parse command line arguments and extract the values required
 LABELS, weightsPath, configPath, inputVideoPath, outputVideoPath,\
-	preDefinedConfidence, preDefinedThreshold = parseCommandLineArguments()
+	preDefinedConfidence, preDefinedThreshold, USE_GPU= parseCommandLineArguments()
 
 # Initialize a list of colors to represent each possible class label
 np.random.seed(42)
@@ -41,7 +42,7 @@ def displayVehicleCount(frame, vehicle_count):
 # RETURN: 
 # - True if the midpoint of the box overlaps with the line within a threshold of 5 units 
 # - False if the midpoint of the box lies outside the line and threshold
-def boxAndLineOverlap(x_mid_point,y_mid_point, line_coordinates):
+def boxAndLineOverlap(x_mid_point, y_mid_point, line_coordinates):
 	x1_line, y1_line, x2_line, y2_line = line_coordinates #Unpacking
 
 	if (x_mid_point >= x1_line and x_mid_point <= x2_line+5) and\
@@ -139,6 +140,11 @@ def count_vehicles(idxs, boxes, classIDs, vehicle_count, previous_frame_detectio
 # and determine only the *output* layer names that we need from YOLO
 print("[INFO] loading YOLO from disk...")
 net = cv2.dnn.readNetFromDarknet(configPath, weightsPath)
+
+if USE_GPU:
+	net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
+	net.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
+
 ln = net.getLayerNames()
 ln = [ln[i[0] - 1] for i in net.getUnconnectedOutLayers()]
 
@@ -162,7 +168,8 @@ start_time = int(time.time())
 # loop over frames from the video file stream
 while True:
 	print("================NEW FRAME================")
-	num_frames += 1
+	num_frames+= 1
+	print("FRAME:\t", num_frames)
 	# Initialization for each iteration
 	boxes, confidences, classIDs = [], [], [] 
 	vehicle_crossed_line_flag = False 
@@ -179,7 +186,7 @@ while True:
 	# construct a blob from the input frame and then perform a forward
 	# pass of the YOLO object detector, giving us our bounding boxes
 	# and associated probabilities
-	blob = cv2.dnn.blobFromImage(frame, 1 / 255.0, (416, 416),
+	blob = cv2.dnn.blobFromImage(frame, 1 / 255.0, (inputWidth, inputHeight),
 		swapRB=True, crop=False)
 	net.setInput(blob)
 	start = time.time()
@@ -211,10 +218,10 @@ while True:
 				# and and left corner of the bounding box
 				x = int(centerX - (width / 2))
 				y = int(centerY - (height / 2))
-
+                            
 				#Printing the info of the detection
-				print('\nName:\t', LABELS[classID],
-					'\t|\tBOX:\t', x,y)
+				#print('\nName:\t', LABELS[classID],
+					#'\t|\tBOX:\t', x,y)
 
 				# update our list of bounding box coordinates,
 				# confidences, and class IDs
@@ -245,7 +252,7 @@ while True:
     # write the output frame to disk
 	writer.write(frame)
 
-	cv2.imshow('Frame', frame)
+	#cv2.imshow('Frame', frame)
 	if cv2.waitKey(1) & 0xFF == ord('q'):
 		break	
 	

@@ -5,8 +5,6 @@ You Only Look Once (YOLO) is a CNN architecture for performing real-time object 
 
 This project aims to count every vehicle (motorcycle, bus, car, cycle, truck, train) detected in the input video using YOLOv3 object-detection algorithm.
 
-This project currently harnesses the power of a CPU, but the goal is to use GPU for computations.
-
 ## Working 
 <p align="center">
   <img src="https://github.com/guptavasu1213/Yolo-Vehicle-Counter/blob/master/example_gif/highwayVideoExample.gif">
@@ -25,14 +23,18 @@ cd yolo-coco
 wget https://pjreddie.com/media/files/yolov3.weights
 ``` 
 
-## Dependencies
-* OpenCV 3.4 or above(Tested on OpenCV 3.4.2.17)
-```
-pip3 install opencv-python==3.4.2.17
-```
+## Dependencies for using CPU for computations
 * Python3 (Tested on Python 3.6.9)
 ```
 sudo apt-get upgrade python3
+```
+* Pip3
+```
+sudo apt-get install python3-pip
+```
+* OpenCV 3.4 or above(Tested on OpenCV 3.4.2.17)
+```
+pip3 install opencv-python==3.4.2.17
 ```
 * Imutils 
 ```
@@ -43,22 +45,34 @@ pip3 install imutils
 pip3 install scipy
 ```
 
+## Dependencies for using GPU for computations
+* Installing GPU appropriate drivers by following Step #2 in the following post:
+https://www.pyimagesearch.com/2019/12/09/how-to-install-tensorflow-2-0-on-ubuntu/
+* Installing OpenCV for GPU computations:
+Pip installable OpenCV does not support GPU computations for `dnn` module. Therefore, this post walks through installing OpenCV which can leverage the power of a GPU-
+https://www.pyimagesearch.com/2020/02/03/how-to-use-opencvs-dnn-module-with-nvidia-gpus-cuda-and-cudnn/
 ## Usage
 * `--input` or `-i` argument requires the path to the input video
 * `--output` or `-o` argument requires the path to the output video
 * `--yolo` or `-y` argument requires the path to the folder where the configuration file, weights and the coco.names file is stored
 * `--confidence` or `-c` is an optional argument which requires a float number between 0 to 1 denoting the minimum confidence of detections. By default, the confidence is 0.5 (50%).
 * `--threshold` or `-t` is an optional argument which requires a float number between 0 to 1 denoting the threshold when applying non-maxima suppression. By default, the threshold is 0.3 (30%).
-
+* `--use-gpu` or `-u` is an optional argument which requires 0 or 1 denoting the use of GPU. By default, the CPU is used for computations
 ```
-python3 yolo_video.py --input <input video path> --output <output video path> --yolo yolo-coco [--confidence <float number between 0 and 1>] [--threshold <float number between 0 and 1>]
+python3 yolo_video.py --input <input video path> --output <output video path> --yolo yolo-coco [--confidence <float number between 0 and 1>] [--threshold <float number between 0 and 1>] [--use-gpu 1]
 ```
 Examples: 
+* Running with defaults
 ```
 python3 yolo_video.py --input inputVideos/highway.mp4 --output outputVideos/highwayOut.avi --yolo yolo-coco 
 ```
+* Specifying confidence
 ```
 python3 yolo_video.py --input inputVideos/highway.mp4 --output outputVideos/highwayOut.avi --yolo yolo-coco --confidence 0.3
+```
+* Using GPU
+```
+python3 yolo_video.py --input inputVideos/highway.mp4 --output outputVideos/highwayOut.avi --yolo yolo-coco --use-gpu 1
 ```
 
 ## Implementation details
