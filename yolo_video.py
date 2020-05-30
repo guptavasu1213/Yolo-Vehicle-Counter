@@ -130,20 +130,32 @@ def count_vehicles(idxs, boxes, classIDs, vehicle_count, previous_frame_detectio
 			# extract the bounding box coordinates
 			(x, y) = (boxes[i][0], boxes[i][1])
 			(w, h) = (boxes[i][2], boxes[i][3])
+			
+			centerX = x + (w//2)
+			centerY = y+ (h//2)
 
 			# When the detection is in the list of vehicles, AND
 			# it crosses the line AND
 			# the ID of the detection is not present in the vehicles
 			if (LABELS[classIDs[i]] in list_of_vehicles):
-				current_detections[(x + (w//2), y+ (h//2))] = vehicle_count 
-				if (not boxInPreviousFrames(previous_frame_detections, (x + (w//2), y+ (h//2), w, h), current_detections)):
+				current_detections[(centerX, centerY)] = vehicle_count 
+				if (not boxInPreviousFrames(previous_frame_detections, (centerX, centerY, w, h), current_detections)):
 					vehicle_count += 1
 					# vehicle_crossed_line_flag += True
 				# else: #ID assigning
 					#Add the current detection mid-point of box to the list of detected items
-					
-				cv2.putText(frame, str(current_detections.get((x + (w//2), y+ (h//2)))), (x + (w//2), y+ (h//2)),\
-					cv2.FONT_HERSHEY_SIMPLEX, 0.5, [0,0,255], 2)					
+				# Get the ID corresponding to the current detection
+
+				ID = current_detections.get((centerX, centerY))
+				# If there are two detections having the same ID due to being too close, 
+				# then assign a new ID to current detection.
+				if (list(current_detections.values()).count(ID) > 1):
+					current_detections[(centerX, centerY)] = vehicle_count
+					vehicle_count += 1 
+
+				#Display the ID at the center of the box
+				cv2.putText(frame, str(ID), (centerX, centerY),\
+					cv2.FONT_HERSHEY_SIMPLEX, 0.5, [0,0,255], 2)
 
 	return vehicle_count, current_detections
 
